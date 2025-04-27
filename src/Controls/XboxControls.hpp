@@ -17,9 +17,10 @@ private:
 public:
   XboxControls();
   bool is_firing();
+  bool is_shielding();
   float get_thrust();
   float get_direction();
-  void shake();
+  void shake(uint8_t timeActive=50);
   int get_function_key();
 };
 

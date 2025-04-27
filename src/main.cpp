@@ -35,7 +35,7 @@ GameLoop: "Game Loop", 0
 //#include "Fonts/SimpleFont.hpp"
 
 #include <Arduino.h>
-#ifndef ARDUINO_M5STACK_CORES3
+#if defined(ARDUINO_M5STACK_Core2)
 #include <M5Core2.h>
 #endif
 //#include <M5Unified.h>
@@ -66,8 +66,9 @@ static const char *TAG = "APP";
 
 
 void setup() {
-#ifndef ARDUINO_M5STACK_CORES3
+#if defined(ARDUINO_M5STACK_Core2)
   M5.begin(false, false, false, false, kMBusModeOutput, true);
+  M5.Axp.SetDCDC3(false); // LCD BL off
 #endif
   Serial.begin(115200);
   uint32_t Freq;
@@ -126,12 +127,12 @@ void app_main()
   free_ram = esp_get_free_heap_size();
   ESP_LOGI(TAG, "Free ram after SoundFX %d", free_ram);
 
-  ESP_LOGI(TAG, "Creating controls");
+  ESP_LOGI(TAG, "Creating control(s)");
   std::vector<Controls *> controls;
 #ifdef Xbox_Controls_hpp
   //XboxControls *controls = new XboxControls();
   controls.push_back(new XboxControls());
-//  controls.push_back(new XboxControls());
+  //controls.push_back(new XboxControls());
 #else
   // MagneticRotaryEncoder *rotary_encoder = new MagneticRotaryEncoder(
   //     MAGNETIC_ROTARY_ENCODER_CS_GPIO,
@@ -159,14 +160,22 @@ void app_main()
   font->read_from_file("/spiffs/futural.jhf");
   //SimpleFont *font = new SimpleFont();
 
-  ESP_LOGI(TAG, "Starting renderer");
+  ESP_LOGI(TAG, "Starting renderer(s)");
 //   Renderer *renderer = new DACRenderer(WORLD_SIZE, font);
 //   Renderer *renderer = new DMADACRenderer(WORLD_SIZE, font);
   // Renderer *renderer = new HeltecOLEDRenderer(WORLD_SIZE, font);
+//  int spics_io_num[] = {GPIO_NUM_27/*, GPIO_NUM_13*/};
+//  int objectTypes[] = {SHIP|ASTEROID|BULLET, HUD};
+//  std::vector<Renderer *> renderers;
+//  std::vector<RenderBuffer *> renderBuffers;
+//for(int rendererNo=0; rendererNo<sizeof(spics_io_num)/sizeof(spics_io_num[0]); rendererNo++) {
   Renderer *renderer = new SPIRenderer(WORLD_SIZE, font);
   renderer->start();
+//  renderers.push_back(renderer);
+//  renderBuffers.push_back(renderer->get_render_buffer());
+//}
 
-  GameLoop *game_loop = new GameLoop(game, renderer->get_render_buffer());
+  GameLoop *game_loop = new GameLoop(game, renderer->get_render_buffers());
   game_loop->start();
 
   free_ram = esp_get_free_heap_size();
@@ -176,23 +185,30 @@ void app_main()
   ESP_LOGI(TAG, "Free ram after renderer %d", free_ram);
 
   volatile int steps_old=game_loop->steps;
-  volatile int rendered_frames_old=renderer->rendered_frames;
-  volatile int transactions_old=renderer->transactions;
+  volatile int rendered_frames_old[]={0,0,0};//=renderer->rendered_frames;
+  volatile int transactions_old[]={0,0,0};//=renderer->transactions;
   while (true)
   {
     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    ESP_LOGI(TAG, "World steps/s %d, FPS %d, PPS %d, Free RAM %d KB",
+for(int channelpair=0; channelpair<renderer->get_render_buffers().size(); channelpair++) {
+    ESP_LOGI(TAG, "[%d] World steps/s %2d, FPS %d, PPS %d, Free RAM %d KB",
+             channelpair,
              game_loop->steps-steps_old,
-             renderer->rendered_frames-rendered_frames_old,
-             renderer->transactions-transactions_old,
+             renderer->rendered_frames[channelpair]-rendered_frames_old[channelpair],
+             renderer->transactions[channelpair]-transactions_old[channelpair],
              esp_get_free_heap_size()/1024);
+    rendered_frames_old[channelpair]=renderer->rendered_frames[channelpair];
+    transactions_old[channelpair]=renderer->transactions[channelpair];
+}
     steps_old=game_loop->steps;
-    rendered_frames_old=renderer->rendered_frames;
-    transactions_old=renderer->transactions;
 
-    if(controls[0]->get_function_key()==1) M5.shutdown();
-    else if(controls[0]->get_function_key()==2) renderer->set_mode(0);
-    else if(controls[0]->get_function_key()==3) renderer->set_mode(1);
-    else if(controls[0]->get_function_key()==4) renderer->set_mode(2);
+    switch(controls[0]->get_function_key()) {
+#if defined(ARDUINO_M5STACK_Core2)
+      case 1: ESP_LOGI(TAG, "Shuting down"); M5.shutdown(); break;
+#endif
+      case 2: renderer->set_mode(0); break;
+      case 3: renderer->set_mode(1); break;
+      case 4: renderer->set_mode(2); break;
+    }
   }
 }

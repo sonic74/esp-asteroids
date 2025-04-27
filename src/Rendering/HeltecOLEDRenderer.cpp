@@ -127,32 +127,33 @@ void IRAM_ATTR oled_draw_task(void *param)
   while (true)
   {
     u8g2_ClearBuffer(&u8g2);
-    std::vector<DrawInstruction_t> *instructions = renderer->render_buffer->display_frame;
+    std::vector<DrawInstruction_t> *instructions = renderer->render_buffers[0]->display_frame;
     for (int i = 0; i < instructions->size() - 1; i++)
     {
       if ((*instructions)[i + 1].laser)
       {
         u8g2_DrawLine(&u8g2, 32 + (*instructions)[i].x, (*instructions)[i].y, 32 + (*instructions)[i + 1].x, (*instructions)[i + 1].y);
       }
-      renderer->transactions++;
+      renderer->transactions[0]++;
     }
     vTaskDelay(pdMS_TO_TICKS(33));
     u8g2_SendBuffer(&u8g2);
     // trigger a re-render
-    renderer->render_buffer->swapBuffers();
-    renderer->rendered_frames++;
+    renderer->render_buffers[0]->swapBuffers();
+    renderer->rendered_frames[0]++;
   }
 }
 
 HeltecOLEDRenderer::HeltecOLEDRenderer(float world_size, Font *font)
 {
-  render_buffer = new RenderBuffer(
+  render_buffers.push_back(new RenderBuffer(
       0, 64,
       0, 64,
       32,
       32,
       32.0f / world_size,
-      font);
+      font,
+      ALL));
 }
 
 void HeltecOLEDRenderer::start()

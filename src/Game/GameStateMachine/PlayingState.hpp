@@ -8,6 +8,7 @@ class PlayingState : public GameState
 {
 private:
   std::vector<float> firing_cooldown;
+  float firing_cooldown_ufo;
   std::vector<bool> is_respawning;
   std::vector<float> respawn_cooldown;
   std::vector<float> thrust_sound_cooldown;

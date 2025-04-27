@@ -23,6 +23,8 @@ void game_task(void *param)
 
   const TickType_t xMaxBlockTime = pdMS_TO_TICKS(100);
   float prev_time = esp_timer_get_time() / 1E6f;
+  float prev_time_ufo = prev_time;
+  float interval = 1 + rand()/((RAND_MAX + 1u)/60);
   while (true)
   {
     uint32_t ulNotificationValue = ulTaskNotifyTake(pdTRUE, xMaxBlockTime);
@@ -31,10 +33,17 @@ void game_task(void *param)
       // work out the elapsed time - it's good to keep this accurate so the physics simulation and any timers are correct
       float cur_time = esp_timer_get_time() / 1E6f;
       float elapsed_time = cur_time - prev_time;
+      float elapsed_time_ufo = cur_time - prev_time_ufo;
+      if(elapsed_time_ufo >= interval) {
+          prev_time_ufo=cur_time;
+          game_loop->game->add_ufo();
+      }
       game_loop->game->step_world(elapsed_time);
       prev_time = cur_time;
       // re-render if we need to
-      game_loop->render_buffer->render_if_needed(game_loop->game);
+for(auto render_buffer:game_loop->render_buffers) {
+      render_buffer->render_if_needed(game_loop->game);
+}
       game_loop->steps++;
     }
   }

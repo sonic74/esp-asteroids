@@ -15,6 +15,7 @@
 
 class b2World;
 class GameObject;
+class DynamicObject;
 class ShipObject;
 class RenderBuffer;
 class Controls;
@@ -30,6 +31,7 @@ private:
     float asteroid_speed;
     b2World *world;
     std::vector<ShipObject *> ships;
+    DynamicObject * ufo=nullptr;
 
     std::list<GameObject *> objects;
     std::list<GameObject *> bullets;
@@ -82,6 +84,7 @@ public:
     {
         asteroid_speed += 2;
     }
+    void add_ufo();
     void add_asteroids();
     void add_player_ship(int player);
     void destroy_player_ship(int player);

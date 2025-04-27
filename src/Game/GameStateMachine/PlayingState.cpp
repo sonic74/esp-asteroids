@@ -6,6 +6,7 @@
 #include "../GameObjects/ShipObject.hpp"
 
 #define FIRE_COOLDOWN 0.2f
+#define FIRE_COOLDOWN_UFO (FIRE_COOLDOWN*5)
 #define RESPAWN_COOLDOWN 1.0f
 
 static const char *TAG = "GAME";
@@ -43,6 +44,12 @@ for(int player=0; player<game->players; player++) {
   // check to see if the ship has been hit
   if (game->is_ship_hit(player))
   {
+  if(game->get_controls(player)->is_shielding())
+  {
+    game->clear_is_ship_hit(player);
+  }
+  else
+  {
     game->destroy_player_ship(player);
     game->set_lives(game->get_lives() - 1);
     game->get_sound_fx()->bang_large();
@@ -59,6 +66,7 @@ for(int player=0; player<game->players; player++) {
       is_respawning.at(player) = true;
     }
   }
+  }
   auto ship = game->get_ship(player);
   if (ship)
   {
@@ -66,7 +74,7 @@ for(int player=0; player<game->players; player++) {
     ship->setAngle(game->get_controls(player)->get_direction());
     // is the user pushing the thrust button?
     float thrust = game->get_controls(player)->get_thrust();
-    if (thrust>0.0f)
+    if (thrust>0.0f && !game->get_controls(player)->is_shielding())
     {
       ship->thrust(250 * elapsed_time * thrust);
       if (thrust_sound_cooldown[player] <= 0)
@@ -89,13 +97,25 @@ for(int player=0; player<game->players; player++) {
     {
       firing_cooldown.at(player) -= elapsed_time;
     }
-    if (game->get_controls(player)->is_firing() && firing_cooldown[player] <= 0 && game->can_add_bullet(player))
+    if (game->get_controls(player)->is_firing() && !game->get_controls(player)->is_shielding() && firing_cooldown[player] <= 0 && game->can_add_bullet(player))
     {
       game->add_bullet(player);
       // prevent firing for some time period
       firing_cooldown.at(player) = FIRE_COOLDOWN;
       game->get_sound_fx()->fire();
     }
+
+    if (firing_cooldown_ufo > 0)
+    {
+      firing_cooldown_ufo-=elapsed_time;
+    }
+    if (firing_cooldown_ufo <= 0 && game->can_add_bullet(-1))
+    {
+      game->add_bullet(-1);
+      firing_cooldown_ufo = FIRE_COOLDOWN_UFO;
+      game->get_sound_fx()->fire();
+    }
+
   }
   if (!game->has_asteroids())
   {

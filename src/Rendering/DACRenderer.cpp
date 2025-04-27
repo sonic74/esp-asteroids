@@ -29,9 +29,9 @@ if (hold > 0)
 else
 {
   // do we still have things to draw?
-  if (draw_position < render_buffer->display_frame->size())
+  if (draw_position < render_buffers[0]->display_frame->size())
   {
-    const DrawInstruction_t &instruction = render_buffer->display_frame->at(draw_position);
+    const DrawInstruction_t &instruction = render_buffers[0]->display_frame->at(draw_position);
     set_laser(instruction.laser);
     uint8_t output_x = instruction.x;
     uint8_t output_y = instruction.y;
@@ -39,13 +39,13 @@ else
     dac_output_voltage(DAC_CHANNEL_2, output_y);
     hold = instruction.hold;
     draw_position++;
-    transactions++;
+    transactions[0]++;
   }
   else
   {
     // trigger a re-render
-    rendered_frames++;
-    render_buffer->swapBuffers();
+    rendered_frames[0]++;
+    render_buffers[0]->swapBuffers();
     draw_position = 0;
   }
 }
@@ -97,12 +97,13 @@ void DACRenderer::start()
 
 DACRenderer::DACRenderer(float world_size, Font *font)
 {
-  render_buffer = new RenderBuffer(
+  render_buffers.push_back(new RenderBuffer(
       0, 255,
       0, 255,
       128,
       128,
       128.0f / world_size,
-      font);
+      font,
+      ALL));
 }
 #endif

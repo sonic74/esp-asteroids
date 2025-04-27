@@ -1,6 +1,8 @@
 #ifndef _esp32_game_h
 #define _esp32_game_h
 
+#include <vector>
+
 typedef void *TaskHandle_t;
 
 class RenderBuffer;
@@ -11,10 +13,10 @@ class GameLoop
 private:
   TaskHandle_t game_task_handle;
   Game *game;
-  RenderBuffer *render_buffer;
+  std::vector<RenderBuffer *> render_buffers;
 
 public:
-  GameLoop(Game *game, RenderBuffer *render_buffer) : game(game), render_buffer(render_buffer), steps(0) {}
+  GameLoop(Game *game, std::vector<RenderBuffer *> render_buffers) : game(game), render_buffers(render_buffers), steps(0) {}
   int steps;
   void start();
   friend void game_task(void *param);

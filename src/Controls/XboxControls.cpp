@@ -43,8 +43,13 @@ void XboxControls::update() {
 bool XboxControls::is_firing()
 {
   update();
-//  Serial.print(xboxController->xboxNotif.btnA);
   return xboxController.xboxNotif.btnA;
+}
+
+bool XboxControls::is_shielding()
+{
+  update();
+  return xboxController.xboxNotif.btnB;
 }
 
 float XboxControls::get_thrust()
@@ -64,7 +69,7 @@ float XboxControls::get_direction()
     return angleRad;
 }
 
-void XboxControls::shake()
+void XboxControls::shake(uint8_t timeActive)    // 0.5 second
 {
   //ESP_LOGI(TAG, "shake()");
   update();
@@ -72,7 +77,7 @@ void XboxControls::shake()
   repo.setAllOff();
   repo.v.select.shake = true;
   repo.v.power.shake = 30;
-  repo.v.timeActive = 50;    // 0.5 second
+  repo.v.timeActive = timeActive;
   xboxController.writeHIDReport(repo);
 }
 
@@ -81,6 +86,6 @@ int XboxControls::get_function_key() {
   if(xboxController.xboxNotif.btnXbox) return 1;
   else if(xboxController.xboxNotif.btnSelect) return 2;
   else if(xboxController.xboxNotif.btnStart) return 3;
-  else if(xboxController.xboxNotif.btnRB) return 4;
+  else if(xboxController.xboxNotif.btnShare) return 4;
   else return 0;
 }

@@ -11,10 +11,12 @@
 #include "../Game/GameObjects/GameObject.hpp"
 #include "../Game/Game.hpp"
 #include "../Fonts/HersheyFont.hpp"
+#include "../Controls/Controls.hpp"
+#include "esp_log.h"
 
-#include <list>
+static const char *TAG = "RenderBuffer";
 
-RenderBuffer::RenderBuffer(int minX, int maxX, int minY, int maxY, int centerX, int centerY, float scale, Font *font)
+RenderBuffer::RenderBuffer(int minX, int maxX, int minY, int maxY, int centerX, int centerY, float scale, Font *font, unsigned int objectTypes)
 {
     display_frame = new std::vector<DrawInstruction_t>(500);
     drawing_frame = new std::vector<DrawInstruction_t>(500);
@@ -26,10 +28,21 @@ RenderBuffer::RenderBuffer(int minX, int maxX, int minY, int maxY, int centerX, 
     _centerY = centerY;
     _scale = scale;
     _font = font;
+    RenderBuffer::objectTypes=objectTypes;
 }
 
 void RenderBuffer::renderSegment(bool laser, b2Vec2 start, const b2Vec2 &end, int min_hold)
 {
+// for CW450-05 (but causes unstable current draw)
+//#define AFTERGLOW
+#ifdef AFTERGLOW
+    if(!laser) {
+        drawing_frame->push_back({.x = calc_x(start.x),
+                                .y = calc_y(start.y),
+                                .hold = 100,
+                                .laser = false});
+    }
+#endif
     auto vector = end - start;
     auto length = vector.Length();
     int16_t hold = min_hold + (int16_t)((std::min(20.0f, 2.5f * length))); // this is a bit of finger in the air fudge
@@ -102,31 +115,40 @@ if(only1char==-1 || text-textOrig==only1char) {
     return start;
 }
 
-GameObject *removeNearest(b2Vec2 search_point, std::list<GameObject *> &objects)
+GameObject *RenderBuffer::removeNearest(b2Vec2 search_point, std::list<GameObject *> &objects, int objectTypes, bool actuallyRemove)
 {
     GameObject *nearest_object = NULL;
     float nearest_distance = FLT_MAX;
     for (auto object : objects)
     {
+        if(object->getObjectType() & objectTypes) {
         auto distance = (object->getPosition() - search_point).LengthSquared();
         if (distance < nearest_distance)
         {
             nearest_distance = distance;
             nearest_object = object;
         }
+        }
     }
-    objects.remove(nearest_object);
+    if(actuallyRemove) objects.remove(nearest_object);
     return nearest_object;
 }
 
 void RenderBuffer::render_if_needed(Game *game)
 {
-    static int only1char=0, only1charScore=0;
     if (needs_render)
     {
+        odd=!odd;
         drawing_frame->clear();
         // start from the top left corner
         b2Vec2 cur(-30, -30);
+
+#ifdef FRAME
+        renderSegment(true, cur, b2Vec2(-30, 30));
+        renderSegment(true, b2Vec2(-30, 30), b2Vec2(30, 30));
+        renderSegment(true, b2Vec2(30, 30), b2Vec2(30, -30));
+        renderSegment(true, b2Vec2(30, -30), cur);
+#endif
         // score
         if (game->show_scores())
         {
@@ -136,10 +158,14 @@ void RenderBuffer::render_if_needed(Game *game)
         }
         std::list<GameObject *> objects_to_draw(game->getObjects());
         // while we still have objects to draw
+//ESP_LOGI(TAG, "[%d] |objects_to_draw|=%d", objectTypes, objects_to_draw.size());
         while (objects_to_draw.size() > 0)
         {
             // get the nearest object to the current search_point
-            auto object = removeNearest(cur, objects_to_draw);
+            auto object = removeNearest(cur, objects_to_draw/*, objectTypes*/);
+            auto objectType = object->getObjectType();
+if(objectType&objectTypes) {
+if(objectType!=SHIP||(odd||!game->get_controls(object->getPlayer())->is_shielding())) {
             auto numPoints = object->getNumPoints();
             auto points = object->getPoints();
             auto position = object->getPosition();
@@ -157,7 +183,10 @@ void RenderBuffer::render_if_needed(Game *game)
                 renderSegment(true, cur, p);
                 cur = p;
             }
+}
+}
         }
+//ESP_LOGI(TAG, "[%d] |game->getObjects()|=%d", objectTypes, game->getObjects().size());
         // main text
         auto main_text = game->get_main_text();
         if (main_text)

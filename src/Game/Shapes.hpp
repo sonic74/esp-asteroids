@@ -5,6 +5,9 @@
 extern const b2Vec2 shipPoints[];
 extern const int shipPointsCount;
 
+extern const b2Vec2 ufoPoints[];
+extern const int ufoPointsCount;
+
 extern const b2Vec2 shipThrustPoints[];
 extern const int shipThrustPointsCount;
 

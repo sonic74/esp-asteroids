@@ -10,6 +10,8 @@
 
 #include <vector>
 #include "box2d/box2d.h"
+#include "Game/GameObjects/GameObject.hpp"
+#include <list>
 
 class Font;
 
@@ -34,6 +36,9 @@ private:
     int16_t _centerY;
     float _scale;
     Font *_font;
+    int objectTypes;
+    int only1char=0;
+    bool odd=false;
 
     inline int16_t calc_x(float x)
     {
@@ -47,12 +52,13 @@ private:
     b2Vec2 draw_text(b2Vec2 start, float x, float y, const char *text, bool measure, int only1char=-1);
 
 public:
-    RenderBuffer(int minX, int maxX, int minY, int maxY, int centerX, int centerY, float scale, Font *font);
+    RenderBuffer(int minX, int maxX, int minY, int maxY, int centerX, int centerY, float scale, Font *font, unsigned int objectTypes=SHIP|ASTEROID|BULLET|HUD|UFO);
     std::vector<DrawInstruction_t> *display_frame = NULL;
     std::vector<DrawInstruction_t> *drawing_frame = NULL;
     bool needs_render = false;
     void render_if_needed(Game *game);
     bool swapBuffers();
+    static GameObject *removeNearest(b2Vec2 search_point, std::list<GameObject *> &objects, int objectTypes=ALL, bool actuallyRemove=true);
 };
 
 #endif /* RenderBuffer_hpp */

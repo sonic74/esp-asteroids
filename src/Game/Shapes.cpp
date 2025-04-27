@@ -1,5 +1,20 @@
 #include "Shapes.hpp"
 
+const b2Vec2 ufoPoints[] = {
+    b2Vec2(.2, .1),
+    b2Vec2(.6, -.1),
+    b2Vec2(.2, -.3),
+    b2Vec2(-.2, -.3),
+    b2Vec2(-.6, -.1),
+    b2Vec2(-.2, .1),
+    b2Vec2(-.1, .3),
+    b2Vec2(.1, .3),
+
+/*    b2Vec2(-.6, -.1),
+    b2Vec2(.6, -.1)*/
+};
+const int ufoPointsCount = sizeof(ufoPoints)/sizeof(ufoPoints[0]);
+
 const b2Vec2 shipPoints[] = {
     b2Vec2(0.3, 0.5),
     b2Vec2(0, -0.49999999999999994/*?*/),

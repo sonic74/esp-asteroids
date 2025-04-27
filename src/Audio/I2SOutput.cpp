@@ -100,11 +100,11 @@ void I2SOutput::start()
         .fixed_mclk = 0};
 
     //install and start i2s driver
-    i2s_driver_install(I2S_NUM_1, &i2sConfig, 4, &m_i2sQueue);
+    ESP_ERROR_CHECK(i2s_driver_install(I2S_NUM_1, &i2sConfig, 4, &m_i2sQueue));
     // set up the i2s pins
-    i2s_set_pin(I2S_NUM_1, &i2sPins);
+    ESP_ERROR_CHECK(i2s_set_pin(I2S_NUM_1, &i2sPins));
     // clear the DMA buffers
-    i2s_zero_dma_buffer(I2S_NUM_1);
+    ESP_ERROR_CHECK(i2s_zero_dma_buffer(I2S_NUM_1));
     // start a task to write samples to the i2s peripheral
     TaskHandle_t writerTaskHandle;
     xTaskCreate(i2sWriterTask, "i2s Writer Task", 4096, this, 2, &writerTaskHandle);

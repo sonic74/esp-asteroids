@@ -17,6 +17,7 @@
 #include "GameStateMachine/PlayingState.hpp"
 #include "GameStateMachine/GameOverState.hpp"
 #include "GameStateMachine/StartState.hpp"
+#include "Rendering/RenderBuffer.hpp"
 #include <set>
 
 #define MAX_BULLETS_INFLIGHT 10
@@ -133,6 +134,7 @@ void Game::set_score(int new_score, int player)
 
 bool Game::can_add_bullet(int player)
 {
+    if(player==-1 && ufo==nullptr) return false;
     return bullets.size() < MAX_BULLETS_INFLIGHT;
 }
 
@@ -154,6 +156,15 @@ void Game::reset_player_ship(int player)
     if(ships[player]) ships[player]->setPosition(b2Vec2(0, 0));
 }
 
+void Game::add_ufo()
+{
+    if(ufo==nullptr) {
+        ESP_LOGI(TAG, "ufoPointsCount=%d", ufoPointsCount);
+        objects.push_back(ufo=new DynamicObject(world, UFO, ufoPoints, ufoPointsCount, b2Vec2(25, 0), 0, 10/2, b2Vec2(asteroid_speed/4, 0), 0));
+        ESP_LOGI(TAG, "Created UFO");
+    }
+}
+
 void Game::add_asteroids()
 {
     objects.push_back(new DynamicObject(world, ASTEROID, asteroid1Points, asteroid1PointsCount, b2Vec2(25, 25), 0, 10, b2Vec2(asteroid_speed, asteroid_speed), 0));
@@ -166,37 +177,60 @@ void Game::add_asteroids()
 
 void Game::add_bullet(int player)
 {
-    // create a new bullet and add it to the game
-    DynamicObject *bullet = new DynamicObject(world, BULLET, bulletPoints, bulletPointsCount, ships[player]->getPosition(), M_PI + ships[player]->getAngle(), 1.5, -BULLET_SPEED * b2Vec2(cos(M_PI_2 + ships[player]->getAngle()), sin(M_PI_2 + ships[player]->getAngle())), 0);
-
+    DynamicObject *bullet;
+    if(player==-1) {
+        float angle=ufo->getAngle();
+        auto ship = RenderBuffer::removeNearest(ufo->getPosition(), objects, SHIP, false);
+        bullet = new DynamicObject(world, BULLET, bulletPoints, bulletPointsCount, ufo->getPosition() - b2Vec2(4*cos(M_PI_2 + angle), 4*sin(M_PI_2 + angle)), M_PI + angle, 1.5, -BULLET_SPEED * (ufo->getPosition()-ship->getPosition()), 0, -1);
+    } else {
+        // create a new bullet and add it to the game
+        float angle=ships[player]->getAngle();
+        bullet = new DynamicObject(world, BULLET, bulletPoints, bulletPointsCount, ships[player]->getPosition() - b2Vec2(4*cos(M_PI_2 + angle), 4*sin(M_PI_2 + angle)), M_PI + angle, 1.5, -BULLET_SPEED * b2Vec2(cos(M_PI_2 + angle), sin(M_PI_2 + angle)), 0, player);
+    }
     objects.push_back(bullet);
     bullets.push_back(bullet);
 }
 
 void Game::wrap_objects()
 {
-    for (auto object : this->objects)
+    bool changed=false, wrapUfo=false;
+    for (auto object : objects)
     {
         auto position = object->getPosition();
         if (position.x < -size)
         {
             position.x = size;
+            changed=true;
         }
         else if (position.x > size)
         {
             position.x = -size;
+            changed=true;
         }
         if (position.y < -size)
         {
             position.y = size;
+            changed=true;
         }
         else if (position.y > size)
         {
             position.y = -size;
+            changed=true;
         }
-        object->setPosition(position);
+        if(changed) {
+            if(object->getObjectType()==UFO) {
+                wrapUfo=true;
+            } else {
+                object->setPosition(position);
+            }
+        }
+    }
+    if(wrapUfo) {
+        objects.remove(ufo);
+        ufo=nullptr;
     }
 }
+
 
 void Game::process_bullets(float elapsed_time, int player)
 {
@@ -229,19 +263,28 @@ void Game::process_asteroids()
     // remove any hit asteroids
     for (auto asteroid : hitAsteroids)
     {
+        if (asteroid->getObjectType() == UFO)
+        {
+            score += 8;
+            sound_fx->bang_large();
+            sound_fx->bang_large();
+            ufo=nullptr;
+        }
+        else
+        {
         if (asteroid->getAge() < 1)
         {
-            score += 1;
+            if(asteroid->getPlayer()>=0) score += 1;
             sound_fx->bang_large();
         }
         else if (asteroid->getAge() < 2)
         {
-            score += 2;
+            if(asteroid->getPlayer()>=0) score += 2;
             sound_fx->bang_medium();
         }
         else
         {
-            score += 4;
+            if(asteroid->getPlayer()>=0) score += 4;
             sound_fx->bang_small();
         }
         // add any child asteroids
@@ -282,6 +325,7 @@ void Game::process_asteroids()
                 newAsteroid->setAge(asteroid->getAge() + 1);
                 objects.push_back(newAsteroid);
             }
+        }
         }
         // and remove the dead asteroid
         objects.remove(asteroid);
@@ -336,30 +380,51 @@ void Game::BeginContact(b2Contact *contact)
 {
     GameObject *objA = reinterpret_cast<GameObject *>(contact->GetFixtureA()->GetBody()->GetUserData().pointer);
     GameObject *objB = reinterpret_cast<GameObject *>(contact->GetFixtureB()->GetBody()->GetUserData().pointer);
+    ESP_LOGI(TAG, "%d and %d collided!", objA->getObjectType(), objB->getObjectType());
+
     // Asteroid and asteroid collisions - we'll trigger a small bang
     if (objA->getObjectType() == ASTEROID && objB->getObjectType() == ASTEROID)
     {
         _did_asteroids_collide = true;
     }
+
     // Asteroid and bullet collisions - need to check both sides as the order is random
-    if (objA->getObjectType() == BULLET && objB->getObjectType() == ASTEROID)
+    else if (objA->getObjectType() == BULLET && (objB->getObjectType() == ASTEROID || objB->getObjectType() == UFO))
     {
         deadBullets.insert(objA);
         hitAsteroids.insert(objB);
+        objB->setPlayer(objA->getPlayer());
     }
-    if (objA->getObjectType() == ASTEROID && objB->getObjectType() == BULLET)
+    else if ((objA->getObjectType() == ASTEROID || objA->getObjectType() == UFO) && objB->getObjectType() == BULLET)
     {
         deadBullets.insert(objB);
         hitAsteroids.insert(objA);
+        objA->setPlayer(objB->getPlayer());
     }
+
     // Asteroid and ship collision
-    if ((objA->getObjectType() == SHIP && objB->getObjectType() == ASTEROID))
+    else if ((objA->getObjectType() == SHIP && objB->getObjectType() == ASTEROID))
     {
         _is_ship_hit.at(objA->getPlayer())=true;
     }
-    if ((objA->getObjectType() == ASTEROID && objB->getObjectType() == SHIP))
+    else if ((objA->getObjectType() == ASTEROID && objB->getObjectType() == SHIP))
     {
         _is_ship_hit.at(objB->getPlayer())=true;
+    }
+
+    else if ((objA->getObjectType() == SHIP && objB->getObjectType() == BULLET))
+    {
+        if(objA->getPlayer()!=objB->getPlayer()) controls[objA->getPlayer()]->shake(5);
+    }
+    else if ((objA->getObjectType() == BULLET && objB->getObjectType() == SHIP))
+    {
+        if(objA->getPlayer()!=objB->getPlayer()) controls[objB->getPlayer()]->shake(5);
+    }
+
+    else if ((objA->getObjectType() == SHIP && objB->getObjectType() == SHIP))
+    {
+        controls[objA->getPlayer()]->shake();
+        controls[objB->getPlayer()]->shake();
     }
 }
 

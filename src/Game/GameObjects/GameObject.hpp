@@ -10,10 +10,12 @@
 
 typedef enum
 {
-    SHIP,
-    ASTEROID,
-    BULLET,
-    HUD
+    SHIP=1,
+    ASTEROID=2,
+    BULLET=4,
+    HUD=8,
+    UFO=16,
+    ALL=0b11111
 } GAME_OBJECTS;
 
 class GameObject
@@ -54,6 +56,10 @@ public:
     int getPlayer()
     {
         return player;
+    }
+    void setPlayer(int player)
+    {
+        GameObject::player=player;
     }
     virtual b2Vec2 getPosition();
     virtual float getAngle();

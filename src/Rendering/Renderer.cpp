@@ -3,8 +3,8 @@
 // for APCD-520-02-C3
 //#define PWM
 // for mod-modded (via 10 KΩ to PD+) CW450-05
-#define OPEN_SOURCE
-#ifdef PWM
+//#define OPEN_SOURCE
+//#ifdef PWM
 #include "driver/ledc.h"
 #define LEDC_DUTY               (  0)
 //#define LEDC_DUTY               (127) // fuzzy (?)
@@ -18,23 +18,30 @@
 #define LEDC_MODE               LEDC_HIGH_SPEED_MODE
 #endif
 #define LEDC_CHANNEL            LEDC_CHANNEL_0
-#endif
+//#endif
 
-Renderer::Renderer() : render_buffer(NULL)
+Renderer::Renderer() /*: render_buffers(NULL)*/
 {
-  rendered_frames = 0;
+/*  rendered_frames = 0;
   transactions = 0;
-  delays = 0;
+  delays = 0;*/
 }
 
-void Renderer::start()
+void Renderer::start(/*int laser*/)
 {
+for(int laser=0; laser<3; laser++) {
+if(gpio_num[laser]!=GPIO_NUM_NC) {
+switch(dim_modes[laser]) {
+  case INVERTED: {
 /*#if defined(OPEN_SOURCE)
 //  ESP_ERROR_CHECK(gpio_set_direction(PIN_NUM_LASER, GPIO_MODE_OUTPUT_OD));
   ESP_ERROR_CHECK(gpio_set_pull_mode(PIN_NUM_LASER, GPIO_FLOATING));
   ESP_ERROR_CHECK(gpio_set_level(PIN_NUM_LASER, 1));
 #elif defined(PWM)*/
-#if defined(PWM)
+  ESP_ERROR_CHECK(gpio_set_direction(gpio_num[laser], GPIO_MODE_OUTPUT));
+  break;
+//#if defined(PWM)
+  } case PWM: {
   // Prepare and then apply the LEDC PWM timer configuration
   ledc_timer_config_t ledc_timer = {
       .speed_mode       = LEDC_MODE,
@@ -49,43 +56,59 @@ void Renderer::start()
 
   // Prepare and then apply the LEDC PWM channel configuration
   ledc_channel_config_t ledc_channel = {
-      .gpio_num       = PIN_NUM_LASER,
+      .gpio_num       = gpio_num[laser],
       .speed_mode     = LEDC_MODE,
       .channel        = LEDC_CHANNEL,
       .intr_type      = LEDC_INTR_DISABLE,
       .timer_sel      = LEDC_TIMER,
       .duty           = 0,
-      .hpoint         = 0
+      .hpoint         = 0,
   };
   ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
-#else
+  break;
+//#else
+  } case NORMAL: {
   // setup the laser output
-  ESP_ERROR_CHECK(gpio_set_direction(PIN_NUM_LASER, GPIO_MODE_OUTPUT));
-#endif
+  ESP_ERROR_CHECK(gpio_set_direction(gpio_num[laser], GPIO_MODE_OUTPUT));
+  break;
+//#endif
+  }
+}
+}
+}
 }
 
-void IRAM_ATTR Renderer::set_laser(bool on)
+void IRAM_ATTR Renderer::set_laser(bool on, int laser)
 {
   if(mode==1) on=!on;
   else if(mode==2) on=false;
-#if defined(OPEN_SOURCE)
+//#if defined(OPEN_SOURCE)
+switch(dim_modes[laser]) {
+  case INVERTED:
 /*  if(on) {
 //    ESP_ERROR_CHECK(gpio_set_direction(PIN_NUM_LASER, GPIO_MODE_INPUT));
     ESP_ERROR_CHECK(gpio_set_direction(PIN_NUM_LASER, GPIO_MODE_DISABLE));
 //    ESP_ERROR_CHECK(gpio_set_pull_mode(PIN_NUM_LASER, GPIO_FLOATING));
+
 //    ESP_ERROR_CHECK(gpio_set_pull_mode(PIN_NUM_LASER, GPIO_PULLDOWN_ONLY));
 //    ESP_ERROR_CHECK(gpio_pulldown_en(PIN_NUM_LASER));
 //    ESP_ERROR_CHECK(gpio_pullup_dis(PIN_NUM_LASER));
   } else {
     ESP_ERROR_CHECK(gpio_set_direction(PIN_NUM_LASER, GPIO_MODE_OUTPUT));
   }*/
-  gpio_set_level(PIN_NUM_LASER, !on ? 1 : 0);
-#elif defined(PWM)
+  gpio_set_level(gpio_num[laser], !on ? 1 : 0);
+  break;
+//#elif defined(PWM)
+  case PWM:
   ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, on ? LEDC_DUTY : LEDC_DUTY_OFF));
   ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_CHANNEL));
-#else
-  gpio_set_level(PIN_NUM_LASER, on ? 1 : 0);
-#endif
+  break;
+//#else
+  case NORMAL:
+  gpio_set_level(gpio_num[laser], on ? 1 : 0);
+  break;
+//#endif
+}
 }
 
 void Renderer::set_mode(int mode) {
