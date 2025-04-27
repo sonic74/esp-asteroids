@@ -16,7 +16,7 @@ GameLoop: "Game Loop", 0
 
 //#include "WiFi.h"
 //#include "Rendering/DACRenderer.h"
-//#include "Rendering/DMADACRenderer.h"
+//#include "Rendering/I2SRenderer.h"
 //#include "Rendering/HeltecOLEDRenderer.hpp"
 #include "Rendering/SPIRenderer.h"
 #include "Game/GameLoop.h"
@@ -162,7 +162,7 @@ void app_main()
 
   ESP_LOGI(TAG, "Starting renderer(s)");
 //   Renderer *renderer = new DACRenderer(WORLD_SIZE, font);
-//   Renderer *renderer = new DMADACRenderer(WORLD_SIZE, font);
+//   Renderer *renderer = new I2SRenderer(WORLD_SIZE, font);
   // Renderer *renderer = new HeltecOLEDRenderer(WORLD_SIZE, font);
 //  int spics_io_num[] = {GPIO_NUM_27/*, GPIO_NUM_13*/};
 //  int objectTypes[] = {SHIP|ASTEROID|BULLET, HUD};
